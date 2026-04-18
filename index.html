@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频号短剧后台管理系统</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
+    body{background:#f4f6f8;padding:20px}
+    .box{max-width:1400px;margin:0 auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+    h1{font-size:24px;color:#1d2129;margin-bottom:20px}
+    .btn{padding:8px 16px;background:#1677ff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px}
+    .btn-del{background:#f53f3f}
+    table{width:100%;border-collapse:collapse;margin-top:20px}
+    th,td{padding:14px;text-align:left;border-bottom:1px solid #eee;font-size:14px}
+    th{background:#f7f8fa;color:#4e5969}
+    .form-item{margin:12px 0}
+    input,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+    .mask{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);display:flex;justify-content:center;align-items:center}
+    .mask-box{width:560px;background:#fff;padding:24px;border-radius:12px}
+    .hide{display:none}
+    img.cover{width:60px;height:60px;object-fit:cover;border-radius:4px}
+  </style>
+</head>
+<body>
+<div class="box">
+  <h1>短剧后台管理系统</h1>
+  <button class="btn" onclick="openAdd()">➕ 新增短剧</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>短剧ID</th>
+        <th>封面</th>
+        <th>短剧名称</th>
+        <th>总集数</th>
+        <th>类型</th>
+        <th>免费集数</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<!-- 编辑弹窗 -->
+<div id="mask" class="mask hide">
+  <div class="mask-box">
+    <h3 style="margin-bottom:16px">编辑短剧信息</h3>
+    <div class="form-item"><input id="drama_id" placeholder="短剧ID 如：1001"></div>
+    <div class="form-item"><input id="cover" placeholder="封面图片链接"></div>
+    <div class="form-item"><input id="title" placeholder="短剧名称"></div>
+    <div class="form-item"><input id="total" placeholder="总集数"></div>
+    <div class="form-item"><input id="type" placeholder="类型：都市言情/豪门总裁等"></div>
+    <div class="form-item"><input id="free_num" placeholder="免费集数 默认2" value="2"></div>
+    <div class="form-item"><textarea id="desc" rows="4" placeholder="短剧简介"></textarea></div>
+    <div style="margin-top:20px;text-align:right">
+      <button class="btn" onclick="closeMask()">取消</button>
+      <button class="btn" style="margin-left:10px" onclick="saveDrama()">保存提交</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let editId = null;
+loadList();
+
+// 加载短剧列表
+async function loadList(){
+  const res = await fetch('/api/admin/drama/list');
+  const json = await res.json();
+  const list = json.data;
+  let html = '';
+  list.forEach(item=>{
+    html += `
+      <tr>
+        <td>${item.drama_id}</td>
+        <td><img class="cover" src="${item.cover}"></td>
+        <td>${item.title}</td>
+        <td>${item.total}</td>
+        <td>${item.type}</td>
+        <td>${item.free_num}</td>
+        <td>
+          <button class="btn" onclick="edit('${item.drama_id}')">编辑</button>
+          <button class="btn btn-del" onclick="del('${item.drama_id}')">删除</button>
+        </td>
+      </tr>
+    `;
+  });
+  document.getElementById('table-body').innerHTML = html;
+}
+
+// 新增
+function openAdd(){
+  editId = null;
+  document.getElementById('mask').classList.remove('hide');
+  // 清空表单
+  document.getElementById('drama_id').value = '';
+  document.getElementById('cover').value = '';
+  document.getElementById('title').value = '';
+  document.getElementById('total').value = '';
+  document.getElementById('type').value = '';
+  document.getElementById('free_num').value = 2;
+  document.getElementById('desc').value = '';
+}
+
+// 编辑回填
+async function edit(id){
+  editId = id;
+  const res = await fetch('/api/admin/drama/list');
+  const json = await res.json();
+  const item = json.data.find(s=>s.drama_id===id);
+  document.getElementById('drama_id').value = item.drama_id;
+  document.getElementById('cover').value = item.cover;
+  document.getElementById('title').value = item.title;
+  document.getElementById('total').value = item.total;
+  document.getElementById('type').value = item.type;
+  document.getElementById('free_num').value = item.free_num;
+  document.getElementById('desc').value = item.desc;
+  document.getElementById('mask').classList.remove('hide');
+}
+
+// 关闭弹窗
+function closeMask(){
+  document.getElementById('mask').classList.add('hide');
+}
+
+// 保存提交
+async function saveDrama(){
+  const data = {
+    drama_id: document.getElementById('drama_id').value,
+    cover: document.getElementById('cover').value,
+    title: document.getElementById('title').value,
+    total: parseInt(document.getElementById('total').value),
+    type: document.getElementById('type').value,
+    free_num: parseInt(document.getElementById('free_num').value),
+    desc: document.getElementById('desc').value
+  };
+  await fetch('/api/admin/drama/save',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
+  });
+  closeMask();
+  loadList();
+}
+
+// 删除
+async function del(id){
+  if(!confirm('确定删除该短剧？')) return;
+  await fetch('/api/admin/drama/delete',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({drama_id:id})
+  });
+  loadList();
+}
+</script>
+</body>
+</html>
